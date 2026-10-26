@@ -396,7 +396,7 @@ const MAT = {
 };
 
 /* ============================================================
-   MAP (SITE ZERO) - UPGRADED 3D ENVIRONMENT
+   MAP (SITE ZERO) - DETAILED ENVIRONMENT
    ============================================================ */
 const world = new THREE.Group();
 scene.add(world);
@@ -426,10 +426,68 @@ function addFloor(x, z, w, d, mat) {
   return mesh;
 }
 
-function buildStairs(x, y, z, width, steps, stepH, stepD, mat) {
+function createStairs(x, y, z, width, steps, stepH, stepD, mat) {
   for(let i=0; i<steps; i++) {
     addBox(x, y + i*stepH + stepH/2, z + i*stepD, width, stepH, stepD, mat);
   }
+}
+
+function createCrate(x, y, z) {
+  const size = 1.5;
+  const crate = new THREE.Group();
+  const wood = MAT.wood;
+  const metal = MAT.metalDark;
+  
+  const body = new THREE.Mesh(new THREE.BoxGeometry(size, size, size), wood);
+  body.castShadow = true;
+  body.receiveShadow = true;
+  crate.add(body);
+  
+  // Metal frame
+  const edgeGeo = new THREE.BoxGeometry(size + 0.04, 0.06, 0.06);
+  for (let i = -1; i <= 1; i += 2) {
+    for (let j = -1; j <= 1; j += 2) {
+      const e1 = new THREE.Mesh(edgeGeo, metal);
+      e1.position.set(0, i*size/2, j*size/2);
+      crate.add(e1);
+      
+      const e2 = new THREE.Mesh(edgeGeo, metal);
+      e2.rotation.y = Math.PI / 2;
+      e2.position.set(i*size/2, i*size/2, 0);
+      crate.add(e2);
+    }
+  }
+  
+  crate.position.set(x, y + size/2, z);
+  world.add(crate);
+  
+  losMeshes.push(body);
+  colliders.push({ minX: x-size/2, maxX: x+size/2, minZ: z-size/2, maxZ: z+size/2 });
+}
+
+function createBarrel(x, z) {
+  const barrel = new THREE.Group();
+  const metal = new THREE.MeshStandardMaterial({ color: 0x2a5a2a, roughness: 0.6, metalness: 0.4 });
+  
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 1.2, 16), metal);
+  body.castShadow = true;
+  body.receiveShadow = true;
+  barrel.add(body);
+  
+  const ringGeo = new THREE.TorusGeometry(0.41, 0.02, 8, 16);
+  const ringMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.8 });
+  for (let y of [-0.4, 0, 0.4]) {
+    const ring = new THREE.Mesh(ringGeo, ringMat);
+    ring.rotation.x = Math.PI / 2;
+    ring.position.y = y;
+    barrel.add(ring);
+  }
+  
+  barrel.position.set(x, 0.6, z);
+  world.add(barrel);
+  
+  losMeshes.push(body);
+  colliders.push({ minX: x-0.4, maxX: x+0.4, minZ: z-0.4, maxZ: z+0.4 });
 }
 
 function buildMap() {
@@ -449,46 +507,46 @@ function buildMap() {
   addBox(0, 2.5, -37, 24, 5, 1, MAT.concrete);
   addBox(15, 2, -30, 2, 4, 10, MAT.concrete);
 
-  // --- BOMB SITE A (East) - Elevated Platform & Stairs ---
-  addBox(25, 1, 0, 20, 2, 20, MAT.concreteDark); // Raised platform
-  buildStairs(15, 0, -8, 6, 5, 0.4, 0.8, MAT.concrete); // Stairs up
-  addBox(20, 2.5, 5, 2, 2, 2, MAT.wood); // Cover on platform
-  addBox(28, 3, -2, 2, 2, 2, MAT.wood);
-  addBox(30, 2.5, 8, 2, 2, 2, MAT.wood);
-  // Site A Marker
+  // --- BOMB SITE A (East) - Raised Platform ---
+  addBox(25, 1, 0, 20, 2, 20, MAT.concreteDark);
+  createStairs(15, 0, -8, 6, 5, 0.4, 0.8, MAT.concrete);
+  
+  createCrate(20, 2, 5);
+  createCrate(28, 2, -2);
+  createCrate(30, 2, 8);
+  createBarrel(22, 5);
+  
   const siteA = new THREE.Mesh(new THREE.CylinderGeometry(4, 4, 0.2, 32), new THREE.MeshBasicMaterial({color: 0xff3333, transparent: true, opacity: 0.6}));
   siteA.position.set(25, 2.05, 0);
   world.add(siteA);
 
   // --- BOMB SITE B (West) - Two-Story Warehouse ---
-  // Ground floor
   addBox(-25, 4, -10, 20, 8, 1, MAT.concreteDark); 
   addBox(-35, 4, 0, 1, 8, 20, MAT.concreteDark); 
   addBox(-15, 4, 0, 1, 8, 20, MAT.concreteDark); 
   addBox(-25, 4, 10, 6, 8, 1, MAT.concreteDark); 
   addBox(-31, 4, 10, 8, 8, 1, MAT.concreteDark);
   addBox(-19, 4, 10, 8, 8, 1, MAT.concreteDark);
-  // Second floor / Catwalk
-  addBox(-25, 4, 0, 18, 1, 18, MAT.concrete); 
-  // Stairs inside
-  buildStairs(-22, 0, -5, 4, 10, 0.4, 0.6, MAT.metal);
   
-  // Cover inside
-  addBox(-22, 1, 5, 2, 2, 2, MAT.wood);
-  addBox(-28, 1, 5, 2, 2, 2, MAT.wood);
-  addBox(-25, 5, 2, 2, 2, 2, MAT.wood); // On catwalk
+  // Catwalk
+  addBox(-25, 4, 0, 18, 1, 18, MAT.concrete); 
+  createStairs(-22, 0, -5, 4, 10, 0.4, 0.6, MAT.metal);
+  
+  createCrate(-22, 0, 5);
+  createCrate(-28, 0, 5);
+  createCrate(-25, 4, 2);
+  createBarrel(-30, -5);
   
   const siteB = new THREE.Mesh(new THREE.CylinderGeometry(3.5, 3.5, 0.2, 32), new THREE.MeshBasicMaterial({color: 0xff3333, transparent: true, opacity: 0.6}));
   siteB.position.set(-25, 0.05, 0);
   world.add(siteB);
 
-  // --- MID (Center) - Bridge over a trench ---
-  addBox(0, 2, 0, 10, 4, 20, MAT.concrete); // Mid structure
-  // Bridge
+  // --- MID (Center) - Bridge over trench ---
+  addBox(0, 2, 0, 10, 4, 20, MAT.concrete); 
   addBox(0, 4, 0, 6, 0.5, 20, MAT.metal); 
-  // Trench walls
   addBox(-5, 1, 0, 1, 2, 20, MAT.concreteDark);
   addBox(5, 1, 0, 1, 2, 20, MAT.concreteDark);
+  
   // Side routes
   addBox(-15, 1.5, 15, 10, 3, 2, MAT.concrete); 
   addBox(15, 1.5, 15, 10, 3, 2, MAT.concrete);  
@@ -496,13 +554,14 @@ function buildMap() {
   addBox(15, 1.5, -15, 10, 3, 2, MAT.concrete);
 
   // Scattered cover
-  for(let i=0; i<15; i++) {
+  for(let i=0; i<10; i++) {
     const x = rnd(-30, 30);
     const z = rnd(-20, 20);
-    if(Math.abs(x) < 8 && Math.abs(z) < 12) continue; // Keep mid clear
+    if(Math.abs(x) < 8 && Math.abs(z) < 12) continue;
     if(x > 15 && z > -10 && z < 10) continue;
     if(x < -15 && z > -10 && z < 10) continue;
-    addBox(x, 0.75, z, 1.5, 1.5, 1.5, Math.random() > 0.5 ? MAT.wood : MAT.metal);
+    if(Math.random() > 0.5) createCrate(x, 0, z);
+    else createBarrel(x, z);
   }
 }
 
@@ -585,13 +644,11 @@ function buildWeaponModel(type) {
   // Add 3D Hands (Arms)
   const armMat = MAT.skin;
   
-  // Left hand (support)
   const lArm = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.04, 0.3, 8), armMat);
   lArm.position.set(-0.02, -0.1, -0.15); lArm.rotation.x = Math.PI/2; lArm.rotation.z = 0.2;
   const lHand = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.04, 0.08), armMat);
   lHand.position.set(-0.02, -0.04, -0.15);
   
-  // Right hand (trigger)
   const rArm = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.04, 0.3, 8), armMat);
   rArm.position.set(0.02, -0.15, 0.15); rArm.rotation.x = Math.PI/2; rArm.rotation.z = -0.2;
   const rHand = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.06, 0.08), armMat);
@@ -606,7 +663,6 @@ function buildWeaponModel(type) {
 const weaponRoot = new THREE.Group();
 weaponScene.add(weaponRoot);
 
-// 3D Volumetric Muzzle Flash
 const flashGeo = new THREE.SphereGeometry(0.15, 8, 8);
 const flashMat = new THREE.MeshBasicMaterial({ color: 0xffdd88, transparent: true, opacity: 0.8 });
 const muzzleFlash = new THREE.Mesh(flashGeo, flashMat);
@@ -625,7 +681,7 @@ const player = {
   vel: new THREE.Vector3(),
   yaw: 0, 
   pitch: 0,
-  health: 5000000,
+  health: 100,
   armor: 0,
   alive: true,
   money: 800,
@@ -660,42 +716,47 @@ function buildCharacterModel(type) {
   const skin = MAT.skin;
 
   // Legs
-  const legL = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.8, 0.25), cloth);
-  legL.position.set(-0.15, 0.4, 0);
-  const legR = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.8, 0.25), cloth);
-  legR.position.set(0.15, 0.4, 0);
+  const legL = new THREE.Mesh(new THREE.CapsuleGeometry(0.12, 0.6, 4, 8), cloth);
+  legL.position.set(-0.15, 0.45, 0);
+  const legR = new THREE.Mesh(new THREE.CapsuleGeometry(0.12, 0.6, 4, 8), cloth);
+  legR.position.set(0.15, 0.45, 0);
+  
   // Boots
-  const bootL = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.15, 0.35), gear);
+  const bootL = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.15, 0.3), gear);
   bootL.position.set(-0.15, 0.075, 0.05);
-  const bootR = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.15, 0.35), gear);
+  const bootR = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.15, 0.3), gear);
   bootR.position.set(0.15, 0.075, 0.05);
 
   // Torso
-  const torso = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.7, 0.3), cloth);
+  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.22, 0.5, 4, 8), cloth);
   torso.position.set(0, 1.15, 0);
   
   // Tactical Vest
-  const vest = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.5, 0.35), gear);
+  const vest = new THREE.Mesh(new THREE.BoxGeometry(0.48, 0.45, 0.35), gear);
   vest.position.set(0, 1.15, 0);
-  // Pouches on vest
-  const pouch1 = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.15, 0.1), gear);
+  
+  // Pouches
+  const pouch1 = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, 0.08), gear);
   pouch1.position.set(-0.15, 1.05, 0.2);
-  const pouch2 = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.15, 0.1), gear);
+  const pouch2 = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, 0.08), gear);
   pouch2.position.set(0.15, 1.05, 0.2);
 
-  // Head & Helmet
-  const head = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.25, 0.25), skin);
+  // Head
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.14, 16, 16), skin);
   head.position.set(0, 1.65, 0);
-  const helmet = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.15, 0.3), gear);
-  helmet.position.set(0, 1.75, 0);
+  
+  // Helmet
+  const helmet = new THREE.Mesh(new THREE.SphereGeometry(0.16, 16, 16, 0, Math.PI*2, 0, Math.PI/2), gear);
+  helmet.position.set(0, 1.67, 0);
+  
   // Visor
-  const visor = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.08, 0.02), new THREE.MeshBasicMaterial({color:0x111111}));
+  const visor = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.06, 0.02), new THREE.MeshBasicMaterial({color:0x111111}));
   visor.position.set(0, 1.65, 0.13);
 
   // Arms (holding gun pose)
-  const armL = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.4, 0.12), cloth);
+  const armL = new THREE.Mesh(new THREE.CapsuleGeometry(0.08, 0.35, 4, 8), cloth);
   armL.position.set(-0.3, 1.2, -0.1); armL.rotation.x = Math.PI/3; armL.rotation.y = -0.5;
-  const armR = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.4, 0.12), cloth);
+  const armR = new THREE.Mesh(new THREE.CapsuleGeometry(0.08, 0.35, 4, 8), cloth);
   armR.position.set(0.3, 1.2, -0.1); armR.rotation.x = Math.PI/3; armR.rotation.y = 0.5;
 
   // Weapon (Simplified 3D Rifle)
@@ -725,7 +786,7 @@ class Enemy {
     this.mesh = buildCharacterModel('T');
     scene.add(this.mesh);
     
-    // 3D Health Bar (Sprite)
+    // 3D Health Bar
     const canvas = document.createElement('canvas');
     canvas.width = 128; canvas.height = 16;
     const ctx = canvas.getContext('2d');
@@ -738,7 +799,7 @@ class Enemy {
     this.healthBar.position.y = 2.1;
     this.mesh.add(this.healthBar);
 
-    this.health = 5000000;
+    this.health = 100;
     this.alive = true;
     this.state = 'patrol';
     this.fireTimer = rnd(1, 3);
@@ -748,7 +809,7 @@ class Enemy {
   
   reset() {
     this.pos.copy(this.spawnPos);
-    this.health = 5000000;
+    this.health = 100;
     this.alive = true;
     this.state = 'patrol';
     this.mesh.visible = true;
@@ -767,7 +828,7 @@ class Enemy {
     }
     this.mesh.visible = true;
 
-    const eyePos = new THREE.Vector3(this.pos.x, 1.6, this.pos.z);
+    const eyePos = new THREE.Vector3(this.pos.x, 1.55, this.pos.z);
     const targetPos = new THREE.Vector3(player.pos.x, player.pos.y + 1.2, player.pos.z);
     const dir = targetPos.clone().sub(eyePos).normalize();
     const ray = new THREE.Raycaster(eyePos, dir, 0, dist);
@@ -787,16 +848,8 @@ class Enemy {
 
       this.fireTimer -= dt;
       if(this.fireTimer <= 0 && player.invulnerable <= 0) {
-        playSound('rifle', dist);
+        this.fireAtPlayer(dist);
         this.fireTimer = rnd(0.1, 0.2); 
-        
-        const hitChance = clamp(1 - dist/50, 0.2, 0.85);
-        if(Math.random() < hitChance) {
-          damagePlayer(rnd(10, 20));
-        }
-        // 3D Tracer from enemy gun
-        const gunPos = new THREE.Vector3(this.pos.x, 1.25, this.pos.z).add(dir.clone().multiplyScalar(0.5));
-        spawnTracer(gunPos, targetPos);
       }
       
       // Simple strafe
@@ -833,11 +886,39 @@ class Enemy {
     }
   }
 
+  fireAtPlayer(dist) {
+    // Strict LOS check at the exact moment of firing
+    const eyePos = new THREE.Vector3(this.pos.x, 1.55, this.pos.z);
+    const targetPos = new THREE.Vector3(player.pos.x, player.pos.y + 1.2, player.pos.z);
+    const dir = targetPos.clone().sub(eyePos).normalize();
+    
+    // Raycast against the world
+    const worldRay = new THREE.Raycaster(eyePos, dir, 0, dist);
+    const worldHits = worldRay.intersectObjects(losMeshes);
+    
+    if (worldHits.length > 0) return; // Bullet blocked by wall
+
+    playSound('rifle', dist);
+    
+    // Visual Tracer
+    const tracerEnd = targetPos.clone().add(new THREE.Vector3(rnd(-0.4, 0.4), rnd(-0.4, 0.4), rnd(-0.4, 0.4)));
+    spawnTracer(eyePos, tracerEnd);
+
+    // Accuracy check
+    let acc = 0.55;
+    acc *= clamp(1.25 - dist/55, 0.28, 1.05);
+    if (player.sprinting) acc *= 0.8;
+    if (player.crouching) acc *= 0.9;
+
+    if(Math.random() < acc) {
+      damagePlayer(rnd(10, 20));
+    }
+  }
+
   takeDamage(dmg) {
     this.health -= dmg;
     this.healthBar.scale.x = Math.max(0, this.health / 100);
     
-    // Flash health bar
     this.healthBar.material.color.setHex(0xffffff);
     setTimeout(() => { this.healthBar.material.color.setHex(0xff0000); }, 100);
     
@@ -886,7 +967,7 @@ function startRound() {
   player.pos.set(0, 0, 30); 
   player.vel.set(0, 0, 0);
   player.yaw = 0; 
-  player.health = 5000000;
+  player.health = 100;
   player.alive = true;
   player.invulnerable = 5.0; 
   player.money = Math.min(16000, player.money + 1400); 
@@ -1344,7 +1425,6 @@ function init() {
   weaponRoot.add(buildWeaponModel('glock'));
   weaponRoot.position.set(0.25, -0.2, -0.5);
 
-  // UI Bindings
   $('btnPlay').onclick = () => {
     initAudio();
     $('mainMenu').classList.add('hidden');
@@ -1406,13 +1486,12 @@ function init() {
 
     update(dt);
 
-    // Render Pipeline
     renderer.clear();
-    renderer.render(scene, camera); // Render World
+    renderer.render(scene, camera);
     
     if(gameState === 'PLAYING' || gameState === 'DEAD') {
       renderer.clearDepth();
-      renderer.render(weaponScene, weaponCamera); // Render Weapon Overlay
+      renderer.render(weaponScene, weaponCamera);
     }
   }
   animate();
